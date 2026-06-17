@@ -568,11 +568,21 @@ Returns non-nil if config was created."
            (remote-branches (gitsy--list-remote-branches remote)))
       (unless remote-branches
         (user-error "No remote branches found"))
-      (let* ((base-branch (completing-read "Base branch: " remote-branches nil t))
-             (default-name (if (string-match (format "^%s/\\(.+\\)$" remote) base-branch)
-                               (match-string 1 base-branch)
-                             ""))
-             (branch-name (read-string "New branch name: " default-name))
+      ;; Present branch names without the remote prefix, defaulting to "main".
+      (let* ((prefix (concat remote "/"))
+             (branch-names (mapcar (lambda (b)
+                                     (if (string-prefix-p prefix b)
+                                         (substring b (length prefix))
+                                       b))
+                                   remote-branches))
+             (default-base (car (member "main" branch-names)))
+             (remote-branch (completing-read
+                             (if default-base
+                                 (format "Remote branch (default %s): " default-base)
+                               "Remote branch: ")
+                             branch-names nil t nil nil default-base))
+             (base-branch (concat prefix remote-branch))
+             (branch-name (read-string "New branch name: " remote-branch))
              (worktree-path (expand-file-name branch-name (gitsy--resolve-worktree-path))))
         (when (string-empty-p branch-name)
           (user-error "Branch name cannot be empty"))
